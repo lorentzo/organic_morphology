@@ -1,4 +1,4 @@
-# Organice morphology
+# Organic morphology
 
 Work in progress...
 
