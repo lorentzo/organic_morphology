@@ -17,7 +17,7 @@ def smooth_falloff(x, deviation, shift):
 def smooth_falloff2(x):
     return 1 / (np.power(1+np.sqrt(x), 3.0/2.0))
 
-def lerp(t, a, b):
+def lerp(a, b, t):
     return (1.0 - t) * a + t * b
 
 def select_activate_only(objects=[]):
@@ -28,63 +28,98 @@ def select_activate_only(objects=[]):
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
 
+# https://behreajj.medium.com/scripting-curves-in-blender-with-python-c487097efd13
+def set_animation_fcurve(animation_data, option='LINEAR', easing='EASE_IN_OUT'):
+    # Animation data must be given!
+    # animation_data: object.data.animation_data.action.fcurves
+    # animation_data: object.animation_data.action.fcurves
+    fcurves = animation_data.action.fcurves
+    for fcurve in fcurves:
+        for kf in fcurve.keyframe_points:
+            # Options: ['CONSTANT', 'LINEAR', 'BEZIER', 'SINE',
+            # 'QUAD', 'CUBIC', 'QUART', 'QUINT', 'EXPO', 'CIRC',
+            # 'BACK', 'BOUNCE', 'ELASTIC']
+            kf.interpolation = option
+            # Options: ['AUTO', 'EASE_IN', 'EASE_OUT', 'EASE_IN_OUT']
+            kf.easing = easing
 
-# GUI selection.
-selected_object = bpy.context.selected_objects[0] 
-print("Selected object:", selected_object.name)
+def main():
 
-# Create kdtree.
-n_verts = len(selected_object.data.vertices)
-kd = mathutils.kdtree.KDTree(n_verts)
-for i, v in enumerate(selected_object.data.vertices):
-    kd.insert(v.co, i)
-kd.balance()
+    target_collection = "grow_objects"
+    for base_object in bpy.data.collections[target_collection].all_objects:
 
-# Animate.
-max_movements = 50
-curr_frame = 0
-delta_frame = 10
-# Take n random vert indices.
-rand_vert_indices = np.random.randint(0, n_verts, max_movements)
-vertex_last_keyframe = {}
-for i in rand_vert_indices:
-    vertex_last_keyframe.update({i: 0})
-# Ini all vert keyframes.
-for v in selected_object.data.vertices:
-    v.keyframe_insert("co", frame=0)
-for vi in rand_vert_indices:
-    v = selected_object.data.vertices[vi]
-    # Update coordinates.
-    search_dist = 2
-    deviation = np.abs(mathutils.noise.noise(v.co)) * 3
-    for (co, index, dist) in kd.find_range(v.co, search_dist):
-        curr_vert = selected_object.data.vertices[index]
-        # Keyframe ini coordinates.
-        if not index in vertex_last_keyframe: 
-            curr_vert.keyframe_insert("co", frame=curr_frame)
-        # Perform movement.
-        curr_vert.select = True
-        curr_vert.co += curr_vert.normal * smooth_falloff(dist, 1, 0) * lerp(0.5,3,mathutils.noise.random())
-        # Keyframe updated coordinates.
-        curr_vert.keyframe_insert("co", frame=curr_frame+delta_frame)
-        # Store keyframe.
-        vertex_last_keyframe[index] = curr_frame+delta_frame
-    if mathutils.noise.random() > 0.6:
+        # Create kdtree from object vertices.
+        n_verts = len(base_object.data.vertices)
+        kd = mathutils.kdtree.KDTree(n_verts)
+        for i, v in enumerate(base_object.data.vertices):
+            kd.insert(v.co, i)
+        kd.balance()
+
+        # Animate.
+        curr_frame = 0
+        delta_frame = 10
+        max_frames = 500
+        growth_change_frame = max_frames / 2.0
+
+        # Scale whole object.
+        original_obj_scale = mathutils.Vector(base_object.scale)
+        scale_factor = 1.2
+        base_object.keyframe_insert("scale", frame=curr_frame)
+        base_object.scale = original_obj_scale * scale_factor
+        base_object.keyframe_insert("scale", frame=growth_change_frame)
+        base_object.scale = original_obj_scale
+        base_object.keyframe_insert("scale", frame=max_frames)
+        set_animation_fcurve(base_object.animation_data, option='BOUNCE', easing='EASE_IN_OUT')
+
+        # Ini all vert keyframes to frame curr_frame.
+        vertex_last_keyframe = {}
+        for v in base_object.data.vertices:
+            v.keyframe_insert("co", frame=curr_frame)
+            vertex_last_keyframe.update({v.index: curr_frame}) # at beginning, all vertices have keyframe at frame curr_frame
+
+        # Add movement and keyframes.
         curr_frame += delta_frame
-    
+        sign = 1
+        while True:
+            vi = np.random.randint(0, n_verts, 1)[0]
+            v = base_object.data.vertices[vi]
+            # Update coordinates.
+            t = mathutils.noise.random()
+            neighbour_distace = lerp(2.0, 4.0, t)
+            # Growth direction.
+            if curr_frame < growth_change_frame:
+                # Direction of growth in first part is mostly positive.
+                if mathutils.noise.random() > 0.2:
+                    sign = 1.0
+                else:
+                    sign = -1.0
+            else:
+                # Direction of growth in second part is mostly negative.
+                if mathutils.noise.random() > 0.2:
+                    sign = -1.0
+                else:
+                    sign = 1.0
+            for (co, index, dist) in kd.find_range(v.co, neighbour_distace):
+                curr_vert = base_object.data.vertices[index]
+                # Perform movement.
+                falloff_deviation = 1
+                falloff_shift = 0.0
+                curr_vert.co += curr_vert.normal * smooth_falloff(dist, falloff_deviation, falloff_shift) * sign * lerp(1.5,3,mathutils.noise.random())
+                # Keyframe updated coordinates.
+                curr_vert.keyframe_insert("co", frame=curr_frame)
+                # Store keyframe.
+                vertex_last_keyframe[index] = curr_frame
+            if mathutils.noise.random() > 0.6:
+                curr_frame += delta_frame
 
+            if curr_frame > max_frames:
+                break
 
-#for i_key_frame in range(n_key_frames):
-#for v in selected_object.data.vertices:
-    #selected_object.data.vertices[v.index].keyframe_insert("co", frame=curr_frame)
-    #if mathutils.noise.random() > 0.5:
-"""
-v = selected_object.data.vertices[4]
-co_find = v.co
-for (co, index, dist) in kd.find_range(co_find, 2):
-    selected_object.data.vertices[index].select = True
-    print(co)
-"""     
-                    
-        #selected_object.data.vertices[v.index].keyframe_insert("co", frame=curr_frame)
-    #curr_frame += delta_frame
+        # Add interpolation type.
+        set_animation_fcurve(base_object.data.animation_data, option='BOUNCE', easing='EASE_IN_OUT')
+
+#
+# Script entry point.
+#
+if __name__ == "__main__":
+    main()
