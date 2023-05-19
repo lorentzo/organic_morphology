@@ -6,6 +6,8 @@ import mathutils
 import bmesh
 import numpy as np
 
+# NB: all scales are set to fit original blender primitives.
+
 # Help: https://blender.stackexchange.com/questions/40923/editing-a-mesh-in-proportional-mode-from-script
 # https://www.youtube.com/watch?v=6qevtzXgk1k
 
@@ -44,8 +46,19 @@ def set_animation_fcurve(animation_data, option='LINEAR', easing='EASE_IN_OUT'):
             kf.easing = easing
 
 def main():
-
+    # Parameters.
     target_collection = "grow_objects"
+    whole_object_scaling_factor_min_max = [1.1, 1.3]
+
+    size_of_extrusion_min_max = [0.25, 0.35] # how many vertices will be moved in one extrusion
+    strength_of_extrusion_min_max = [0.25, 0.35]
+
+    start_frame = 100
+    delta_frame = 10 # distance between keyframes
+    max_frames = 500
+    growth_change_frame = max_frames / 2.0 # first part is growth, 2nd part is shrinkage
+
+    # Algorithm.
     for base_object in bpy.data.collections[target_collection].all_objects:
 
         # Create kdtree from object vertices.
@@ -56,14 +69,20 @@ def main():
         kd.balance()
 
         # Animate.
-        curr_frame = 0
-        delta_frame = 10
-        max_frames = 500
-        growth_change_frame = max_frames / 2.0
+
+        # First, animate just scaling of whole object.
+        original_obj_scale = mathutils.Vector(base_object.scale)
+        base_object.scale = mathutils.Vector((0,0,0))
+        base_object.keyframe_insert("scale", frame=0)
+        base_object.scale = original_obj_scale
+        base_object.keyframe_insert("scale", frame=start_frame)
+
+        # Then animate organic morphology.
+        curr_frame = start_frame
 
         # Scale whole object.
         original_obj_scale = mathutils.Vector(base_object.scale)
-        scale_factor = 1.2
+        scale_factor = lerp(whole_object_scaling_factor_min_max[0], whole_object_scaling_factor_min_max[1], mathutils.noise.random())
         base_object.keyframe_insert("scale", frame=curr_frame)
         base_object.scale = original_obj_scale * scale_factor
         base_object.keyframe_insert("scale", frame=growth_change_frame)
@@ -85,7 +104,7 @@ def main():
             v = base_object.data.vertices[vi]
             # Update coordinates.
             t = mathutils.noise.random()
-            neighbour_distace = lerp(2.0, 4.0, t)
+            neighbour_distace = lerp(size_of_extrusion_min_max[0], size_of_extrusion_min_max[1], t)
             # Growth direction.
             if curr_frame < growth_change_frame:
                 # Direction of growth in first part is mostly positive.
@@ -104,7 +123,8 @@ def main():
                 # Perform movement.
                 falloff_deviation = 1
                 falloff_shift = 0.0
-                curr_vert.co += curr_vert.normal * smooth_falloff(dist, falloff_deviation, falloff_shift) * sign * lerp(1.5,3,mathutils.noise.random())
+                strength_of_extrusion = lerp(strength_of_extrusion_min_max[0], strength_of_extrusion_min_max[1], mathutils.noise.random())
+                curr_vert.co += curr_vert.normal * smooth_falloff(dist, falloff_deviation, falloff_shift) * sign * strength_of_extrusion
                 # Keyframe updated coordinates.
                 curr_vert.keyframe_insert("co", frame=curr_frame)
                 # Store keyframe.
