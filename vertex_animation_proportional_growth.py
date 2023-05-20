@@ -19,6 +19,13 @@ def smooth_falloff(x, deviation, shift):
 def smooth_falloff2(x):
     return 1 / (np.power(1+np.sqrt(x), 3.0/2.0))
 
+# Hann
+def hann(x, L):
+    if np.abs(x) <= L / 2.0:
+        return (1.0 / L) * np.power(np.cos((np.pi * x) / L), 2.0)
+    else:
+        return 0.0
+
 def lerp(a, b, t):
     return (1.0 - t) * a + t * b
 
@@ -45,13 +52,23 @@ def set_animation_fcurve(animation_data, option='LINEAR', easing='EASE_IN_OUT'):
             # Options: ['AUTO', 'EASE_IN', 'EASE_OUT', 'EASE_IN_OUT']
             kf.easing = easing
 
+def recalculate_normals_bmesh(obj):
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(obj.data)
+    bm.clear()
+    obj.data.update()
+    bm.free()
+
+
 def main():
     # Parameters.
-    target_collection = "grow_objects"
+    target_collection = "proportional_vertex_growth"
     whole_object_scaling_factor_min_max = [1.1, 1.3]
 
-    size_of_extrusion_min_max = [0.25, 0.35] # how many vertices will be moved in one extrusion
-    strength_of_extrusion_min_max = [0.25, 0.35]
+    size_of_extrusion_min_max = [0.55, 0.86] # how many vertices will be moved in one extrusion
+    strength_of_extrusion_min_max = [0.15, 0.16]
 
     start_frame = 100
     delta_frame = 10 # distance between keyframes
@@ -121,16 +138,19 @@ def main():
             for (co, index, dist) in kd.find_range(v.co, neighbour_distace):
                 curr_vert = base_object.data.vertices[index]
                 # Perform movement.
-                falloff_deviation = 1
+                falloff_deviation = 0.1
                 falloff_shift = 0.0
-                strength_of_extrusion = lerp(strength_of_extrusion_min_max[0], strength_of_extrusion_min_max[1], mathutils.noise.random())
-                curr_vert.co += curr_vert.normal * smooth_falloff(dist, falloff_deviation, falloff_shift) * sign * strength_of_extrusion
+                strength_of_extrusion = lerp(strength_of_extrusion_min_max[0], strength_of_extrusion_min_max[1], 1.0-dist/neighbour_distace)
+                smooth_falloff_val = hann(dist, 1.0) #smooth_falloff(dist, falloff_deviation, falloff_shift)
+                curr_vert.co += curr_vert.normal * smooth_falloff_val * sign * strength_of_extrusion
                 # Keyframe updated coordinates.
                 curr_vert.keyframe_insert("co", frame=curr_frame)
                 # Store keyframe.
                 vertex_last_keyframe[index] = curr_frame
-            if mathutils.noise.random() > 0.6:
-                curr_frame += delta_frame
+            # Recalulate normals since mesh was deformed.
+            recalculate_normals_bmesh(base_object)
+            #if mathutils.noise.random() > 0.6: # TODO
+            curr_frame += delta_frame
 
             if curr_frame > max_frames:
                 break
