@@ -67,10 +67,11 @@ def main():
     target_collection = "proportional_vertex_growth"
     whole_object_scaling_factor_min_max = [1.1, 1.3]
 
+    n_anim_vert = 10
     size_of_extrusion_min_max = [0.55, 0.86] # how many vertices will be moved in one extrusion
     strength_of_extrusion_min_max = [0.15, 0.16]
 
-    start_frame = 100
+    start_frame = 0
     delta_frame = 10 # distance between keyframes
     max_frames = 500
     growth_change_frame = max_frames / 2.0 # first part is growth, 2nd part is shrinkage
@@ -87,14 +88,16 @@ def main():
 
         # Animate.
 
+        """
         # First, animate just scaling of whole object.
         original_obj_scale = mathutils.Vector(base_object.scale)
-        base_object.scale = mathutils.Vector((0,0,0))
+        base_object.scale = mathutils.Vector((0.1,0.1,0.1))
         base_object.keyframe_insert("scale", frame=0)
         base_object.scale = original_obj_scale
         base_object.keyframe_insert("scale", frame=start_frame)
+        """
 
-        # Then animate organic morphology.
+        # Animate organic morphology.
         curr_frame = start_frame
 
         # Scale whole object.
@@ -116,8 +119,12 @@ def main():
         # Add movement and keyframes.
         curr_frame += delta_frame
         sign = 1
+
+        # Take only subset of vertices which will be animated.
+        vert_indices_anim = np.random.randint(0, n_verts, n_anim_vert)
         while True:
-            vi = np.random.randint(0, n_verts, 1)[0]
+            vi_tmp = np.random.randint(0, len(vert_indices_anim), 1)[0]
+            vi = vert_indices_anim[vi_tmp]
             v = base_object.data.vertices[vi]
             # Update coordinates.
             t = mathutils.noise.random()
