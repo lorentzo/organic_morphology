@@ -61,15 +61,32 @@ def recalculate_normals_bmesh(obj):
     obj.data.update()
     bm.free()
 
+def add_subdivision_modifier(obj, subdiv_levels=2):
+    mod = obj.modifiers.new("SubdivisionSurface", 'SUBSURF')
+    mod.subdivision_type = 'CATMULL_CLARK'
+    mod.levels = subdiv_levels
+    mod.render_levels = subdiv_levels
+    mod.show_only_control_edges = True
+    # TODO: advanced options?
+
+def add_remesh_modifier(obj, voxel_size=0.05, shade_smooth=False):
+    mod = obj.modifiers.new("Remesh", 'REMESH')
+    mod.mode = 'VOXEL'
+    mod.voxel_size = voxel_size
+    mod.adaptivity = 0
+    mod.use_smooth_shade = shade_smooth
+    # TODO: other options?
 
 def main():
+
     # Parameters.
     target_collection = "proportional_vertex_growth"
+
     whole_object_scaling_factor_min_max = [1.1, 1.3]
 
-    n_anim_vert = 10
-    size_of_extrusion_min_max = [0.55, 0.86] # how many vertices will be moved in one extrusion
-    strength_of_extrusion_min_max = [0.15, 0.16]
+    n_anim_vert = 30
+    size_of_extrusion_min_max = [0.75, 0.96] # how many vertices will be moved in one extrusion
+    strength_of_extrusion_min_max = [0.35, 0.46]
 
     start_frame = 0
     delta_frame = 10 # distance between keyframes
@@ -87,20 +104,9 @@ def main():
         kd.balance()
 
         # Animate.
-
-        """
-        # First, animate just scaling of whole object.
-        original_obj_scale = mathutils.Vector(base_object.scale)
-        base_object.scale = mathutils.Vector((0.1,0.1,0.1))
-        base_object.keyframe_insert("scale", frame=0)
-        base_object.scale = original_obj_scale
-        base_object.keyframe_insert("scale", frame=start_frame)
-        """
-
-        # Animate organic morphology.
         curr_frame = start_frame
 
-        # Scale whole object.
+        # Animate scaling of the whole object.
         original_obj_scale = mathutils.Vector(base_object.scale)
         scale_factor = lerp(whole_object_scaling_factor_min_max[0], whole_object_scaling_factor_min_max[1], mathutils.noise.random())
         base_object.keyframe_insert("scale", frame=curr_frame)
@@ -110,21 +116,24 @@ def main():
         base_object.keyframe_insert("scale", frame=max_frames)
         set_animation_fcurve(base_object.animation_data, option='BOUNCE', easing='EASE_IN_OUT')
 
-        # Ini all vert keyframes to frame curr_frame.
+        # Initialize all vert keyframes to curr_frame.
         vertex_last_keyframe = {}
         for v in base_object.data.vertices:
             v.keyframe_insert("co", frame=curr_frame)
-            vertex_last_keyframe.update({v.index: curr_frame}) # at beginning, all vertices have keyframe at frame curr_frame
-
-        # Add movement and keyframes.
-        curr_frame += delta_frame
+            vertex_last_keyframe.update({v.index: curr_frame}) # at beginning, all vertices have keyframe at frame curr_frame       
+        
+        # Animate vertices.
         sign = 1
-
         # Take only subset of vertices which will be animated.
         vert_indices_anim = np.random.randint(0, n_verts, n_anim_vert)
         while True:
+            if mathutils.noise.random() > 0.3:
+                curr_frame += delta_frame
+            # OPTION 1: use only subset of vertices for animation.
             vi_tmp = np.random.randint(0, len(vert_indices_anim), 1)[0]
             vi = vert_indices_anim[vi_tmp]
+            # OPTION 2: use random mesh vertex for animation.
+            #vi = np.random.randint(0, n_verts, 1)[0]
             v = base_object.data.vertices[vi]
             # Update coordinates.
             t = mathutils.noise.random()
@@ -155,15 +164,17 @@ def main():
                 # Store keyframe.
                 vertex_last_keyframe[index] = curr_frame
             # Recalulate normals since mesh was deformed.
-            recalculate_normals_bmesh(base_object)
-            #if mathutils.noise.random() > 0.6: # TODO
-            curr_frame += delta_frame
+            #recalculate_normals_bmesh(base_object)
 
             if curr_frame > max_frames:
                 break
 
         # Add interpolation type.
         set_animation_fcurve(base_object.data.animation_data, option='BOUNCE', easing='EASE_IN_OUT')
+
+        # Finally, add subdivision or remesh to make animation mesh smooth.
+        add_subdivision_modifier(base_object, subdiv_levels=2)
+        #add_remesh_modifier(base_object, voxel_size=0.05, shade_smooth=False)
 
 #
 # Script entry point.
