@@ -8,23 +8,43 @@ import numpy as np
 
 # NB: all scales are set to fit original blender primitives.
 
-# Help: https://blender.stackexchange.com/questions/40923/editing-a-mesh-in-proportional-mode-from-script
-# https://www.youtube.com/watch?v=6qevtzXgk1k
+# Shaping functions:
+# https://realtimevfx.com/t/collection-of-useful-curve-shaping-functions/3704
+
+# t = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5}
+def shape1(x, t=0.5):
+    return 1.0 - np.power(np.abs(x), t)
+
+def shape2(x, a=2.0, b=2.0):
+    return np.power(np.cos(np.pi * x / 2.0), 2.0)
+
+def shape3(x, a = 2.0, b = 0.5):
+    return 1.0 - np.power(np.abs(np.sin(np.pi * x / a)), b)
+
+def shape4(x, a=2.0, b=1.0, c=0.5):
+    return np.power(np.minimum(np.cos(np.pi * x / a), b - np.abs(x)), c)
+
+def shape5(x, a=2.0, b=1.0, c=0.5):
+    return 1.0 - np.power(np.maximum(0.0, np.abs(x) * a - b), c)
 
 # Gaussian.
-def smooth_falloff(x, deviation, shift):
+def shape_gauss(x, deviation, shift):
     return (1 / (deviation * np.sqrt(2 * np.pi))) * np.exp(-0.5 * (np.power(x - shift,2.0) / np.power(deviation,2.0)))
 
 # Aglebraic.
-def smooth_falloff2(x):
+def shape_alg(x):
     return 1 / (np.power(1+np.sqrt(x), 3.0/2.0))
 
 # Hann
-def hann(x, L):
+def shape_hann(x, L):
     if np.abs(x) <= L / 2.0:
         return (1.0 / L) * np.power(np.cos((np.pi * x) / L), 2.0)
     else:
         return 0.0
+
+def shape_lerp(x, max_x, minv, maxv):
+    xt = 1.0 - x / max_x
+    return lerp(minv, maxv, xt)
 
 def lerp(a, b, t):
     return (1.0 - t) * a + t * b
@@ -85,11 +105,11 @@ def main():
     whole_object_scaling_factor_min_max = [1.1, 1.3]
 
     n_anim_vert = 30
-    size_of_extrusion_min_max = [0.75, 0.96] # how many vertices will be moved in one extrusion
-    strength_of_extrusion_min_max = [0.35, 0.46]
+    size_of_extrusion_min_max = [0.55, 0.76] # how many vertices will be moved in one extrusion
+    # TODO: strength of extrusion parameter
 
     start_frame = 0
-    delta_frame = 10 # distance between keyframes
+    delta_frame = 50 # distance between keyframes
     max_frames = 500
     growth_change_frame = max_frames / 2.0 # first part is growth, 2nd part is shrinkage
 
@@ -127,13 +147,13 @@ def main():
         # Take only subset of vertices which will be animated.
         vert_indices_anim = np.random.randint(0, n_verts, n_anim_vert)
         while True:
-            if mathutils.noise.random() > 0.3:
-                curr_frame += delta_frame
+            #if mathutils.noise.random() > 0.3:
+            curr_frame += delta_frame
             # OPTION 1: use only subset of vertices for animation.
-            vi_tmp = np.random.randint(0, len(vert_indices_anim), 1)[0]
-            vi = vert_indices_anim[vi_tmp]
+            #vi_tmp = np.random.randint(0, len(vert_indices_anim), 1)[0]
+            #vi = vert_indices_anim[vi_tmp]
             # OPTION 2: use random mesh vertex for animation.
-            #vi = np.random.randint(0, n_verts, 1)[0]
+            vi = np.random.randint(0, n_verts, 1)[0]
             v = base_object.data.vertices[vi]
             # Update coordinates.
             t = mathutils.noise.random()
@@ -154,11 +174,15 @@ def main():
             for (co, index, dist) in kd.find_range(v.co, neighbour_distace):
                 curr_vert = base_object.data.vertices[index]
                 # Perform movement.
-                falloff_deviation = 0.1
-                falloff_shift = 0.0
-                strength_of_extrusion = lerp(strength_of_extrusion_min_max[0], strength_of_extrusion_min_max[1], 1.0-dist/neighbour_distace)
-                smooth_falloff_val = hann(dist, 1.0) #smooth_falloff(dist, falloff_deviation, falloff_shift)
-                curr_vert.co += curr_vert.normal * smooth_falloff_val * sign * strength_of_extrusion
+                #shape_val = hann(dist, 1.0)
+                #shape_val = shape1(dist, 1.0)
+                #shape_val = shape2(dist, 2.0, 2.0)
+                #shape_val = shape3(dist, a = 2.0, b = 0.5)
+                shape_val = shape4(dist, a=2.0, b=1.0, c=0.5)
+                #shape_val = shape5(dist, a=2.0, b=1.0, c=0.5)
+                #shape_val = lerp(0.1, 0.5, shape_gauss(dist, deviation=0.1, shift=0.0))
+                #shape_val = shape_lerp(dist, max_x=neighbour_distace, minv=0.1, maxv=0.5)
+                curr_vert.co += curr_vert.normal * sign * shape_val
                 # Keyframe updated coordinates.
                 curr_vert.keyframe_insert("co", frame=curr_frame)
                 # Store keyframe.
@@ -173,8 +197,8 @@ def main():
         set_animation_fcurve(base_object.data.animation_data, option='BOUNCE', easing='EASE_IN_OUT')
 
         # Finally, add subdivision or remesh to make animation mesh smooth.
-        add_subdivision_modifier(base_object, subdiv_levels=2)
-        #add_remesh_modifier(base_object, voxel_size=0.05, shade_smooth=False)
+        #add_subdivision_modifier(base_object, subdiv_levels=2)
+        add_remesh_modifier(base_object, voxel_size=0.07, shade_smooth=False)
 
 #
 # Script entry point.

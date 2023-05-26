@@ -9,6 +9,9 @@ import numpy as np
 # TODO:
 #* fix animation
 
+def shape3(x, a = 2.0, b = 0.5):
+    return 1.0 - np.power(np.abs(np.sin(np.pi * x / a)), b)
+
 def hann(x, L):
     if np.abs(x) <= L / 2.0:
         return (1.0 / L) * np.power(np.cos((np.pi * x) / L), 2.0)
@@ -108,7 +111,7 @@ def main():
 
     # Parameters.
     target_collection = "proportional_faces_movement"
-    n_extrusions = 3
+    n_extrusions = 10
     extrusion_radius = 0.5
     delta_frame = 10
     
@@ -128,8 +131,9 @@ def main():
             fi = np.random.randint(0, n_faces, 1)[0]
             f = base_object.data.polygons[fi]
             for (pos, index, dist) in kd.find_range(f.center, extrusion_radius):
-                extrusion_amount = hann(dist, 1.0)
-                strength_of_extrusion = lerp(0.1, 0.8, 1.0-dist/extrusion_radius)
+                #extrusion_amount = hann(dist, 1.0)
+                #extrusion_amount = lerp(0.1, 0.8, 1.0-dist/extrusion_radius)
+                extrusion_amount = shape3(dist, a = 2.0, b = 0.5)
                 extrude_vec = base_object.data.polygons[index].normal * extrusion_amount
                 updated_vertex_indices = extrude_with_transform(base_object, index, extrude_vec)
                 keyframe_vertices(base_object, updated_vertex_indices, curr_frame)
