@@ -174,7 +174,7 @@ def main():
     target_collection = "proportional_faces_movement"
     n_extrusions = 10
     extrusion_radius = 0.5
-    delta_frame = 20
+    delta_frame = 50
     max_frames = 500
     
     for base_object in bpy.data.collections[target_collection].all_objects:
@@ -190,19 +190,20 @@ def main():
         curr_frame = 0
         #keyframe_vertices_all(base_object, curr_frame)
         while True:
-            if mathutils.noise.random() > 0.5:
+            if not first_run and mathutils.noise.random() > 0.5:
                 curr_frame += delta_frame
             fi = np.random.randint(0, n_faces, 1)[0]
             f = base_object.data.polygons[fi]
             a = lerp(0.1, 4.0, mathutils.noise.random())
             b = lerp(0.1, 4.0, mathutils.noise.random())
             c = lerp(0.1, 4.0, mathutils.noise.random())
+            extrusion_strength = lerp(0.1, 2.0, mathutils.noise.random())
             for (pos, index, dist) in kd.find_range(f.center, extrusion_radius):
-                #extrusion_amount = shape1(dist, a=a)
-                extrusion_amount = shape2(dist, a=a, b=b)
-                #extrusion_amount = shape3(dist, a=a, b=b)
-                #extrusion_amount = shape5(dist, a=a, b=b, c=c)
-                extrude_vec = base_object.data.polygons[index].normal * extrusion_amount
+                #extrude_shape = shape1(dist, a=a)
+                extrude_shape = shape2(dist, a=a, b=b)
+                #extrude_shape = shape3(dist, a=a, b=b)
+                #extrude_shape = shape5(dist, a=a, b=b, c=c)
+                extrude_vec = base_object.data.polygons[index].normal * extrude_shape * extrusion_strength
                 extrude_with_transform(base_object, index, extrude_vec, curr_frame, delta_frame)
             if curr_frame > max_frames:
                 break

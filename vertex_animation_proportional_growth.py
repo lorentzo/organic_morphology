@@ -174,15 +174,15 @@ def main():
             for (co, index, dist) in kd.find_range(v.co, neighbour_distace):
                 curr_vert = base_object.data.vertices[index]
                 # Perform movement.
-                #shape_val = hann(dist, 1.0)
-                #shape_val = shape1(dist, 1.0)
-                #shape_val = shape2(dist, 2.0, 2.0)
-                #shape_val = shape3(dist, a = 2.0, b = 0.5)
-                shape_val = shape4(dist, a=2.0, b=1.0, c=0.5)
-                #shape_val = shape5(dist, a=2.0, b=1.0, c=0.5)
-                #shape_val = lerp(0.1, 0.5, shape_gauss(dist, deviation=0.1, shift=0.0))
-                #shape_val = shape_lerp(dist, max_x=neighbour_distace, minv=0.1, maxv=0.5)
-                curr_vert.co += curr_vert.normal * sign * shape_val
+                extrude_shape = shape_hann(dist, 1.0)
+                #extrude_shape = shape1(dist, 1.0)
+                #extrude_shape = shape2(dist, 2.0, 2.0)
+                #extrude_shape = shape3(dist, a = 2.0, b = 0.5)
+                #extrude_shape = shape4(dist, a=2.0, b=1.0, c=0.5)
+                #extrude_shape = shape5(dist, a=2.0, b=1.0, c=0.5)
+                #extrude_shape = lerp(0.1, 0.5, shape_gauss(dist, deviation=0.1, shift=0.0))
+                #extrude_shape = shape_lerp(dist, max_x=neighbour_distace, minv=0.1, maxv=0.5)
+                curr_vert.co += curr_vert.normal * sign * extrude_shape
                 # Keyframe updated coordinates.
                 curr_vert.keyframe_insert("co", frame=curr_frame)
                 # Store keyframe.
@@ -194,7 +194,7 @@ def main():
                 break
 
         # Add interpolation type.
-        set_animation_fcurve(base_object.data.animation_data, option='BOUNCE', easing='EASE_IN_OUT')
+        set_animation_fcurve(base_object.data.animation_data, option='EXPO', easing='EASE_IN_OUT')
 
         # Finally, add subdivision or remesh to make animation mesh smooth.
         #add_subdivision_modifier(base_object, subdiv_levels=2)

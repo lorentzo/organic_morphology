@@ -5,8 +5,8 @@ Work in progress...
 Blender Python procedural animation.
 
 Concepts:
-* Python API vertex animation.
-  * Proportional editing via kd tree and smooth bell shape extrusion functions.
+* Python API is used for vertex animation.
+  * Proportional extrusion via kd tree and bell shape functions.
 * Subidvision surface or remesh modifier for mesh smoothing (relaxation)
 
 
