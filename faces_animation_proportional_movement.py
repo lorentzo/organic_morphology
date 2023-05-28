@@ -172,10 +172,13 @@ def main():
 
     # Parameters.
     target_collection = "proportional_faces_movement"
-    n_extrusions = 10
-    extrusion_radius = 0.5
+    extrusion_strength_min = 0.1
+    extrusion_strength_max = 2.0
+    extrusion_radius_min = 0.1
+    extrusion_radius_max = 1.0
     delta_frame = 50
     max_frames = 500
+    n_extrusions_per_keyframe_update = 4
     
     for base_object in bpy.data.collections[target_collection].all_objects:
 
@@ -188,28 +191,30 @@ def main():
 
         # Extrude.
         curr_frame = 0
-        #keyframe_vertices_all(base_object, curr_frame)
         while True:
-            if not first_run and mathutils.noise.random() > 0.5:
-                curr_frame += delta_frame
-            fi = np.random.randint(0, n_faces, 1)[0]
-            f = base_object.data.polygons[fi]
-            a = lerp(0.1, 4.0, mathutils.noise.random())
-            b = lerp(0.1, 4.0, mathutils.noise.random())
-            c = lerp(0.1, 4.0, mathutils.noise.random())
-            extrusion_strength = lerp(0.1, 2.0, mathutils.noise.random())
-            for (pos, index, dist) in kd.find_range(f.center, extrusion_radius):
-                #extrude_shape = shape1(dist, a=a)
-                extrude_shape = shape2(dist, a=a, b=b)
-                #extrude_shape = shape3(dist, a=a, b=b)
-                #extrude_shape = shape5(dist, a=a, b=b, c=c)
-                extrude_vec = base_object.data.polygons[index].normal * extrude_shape * extrusion_strength
-                extrude_with_transform(base_object, index, extrude_vec, curr_frame, delta_frame)
+            curr_frame += delta_frame
+            for i in range(n_extrusions_per_keyframe_update):
+                fi = np.random.randint(0, n_faces, 1)[0]
+                f = base_object.data.polygons[fi]
+                a = lerp(0.1, 4.0, mathutils.noise.random())
+                b = lerp(0.1, 4.0, mathutils.noise.random())
+                c = lerp(0.1, 4.0, mathutils.noise.random())
+                extrusion_strength = lerp(extrusion_strength_min, extrusion_strength_max, mathutils.noise.random())
+                extrusion_radius = lerp(extrusion_radius_min, extrusion_radius_max, mathutils.noise.random())
+                for (pos, index, dist) in kd.find_range(f.center, extrusion_radius):
+                    #extrude_shape = shape1(dist, a=a)
+                    #extrude_shape = shape2(dist, a=a, b=b)
+                    #extrude_shape = shape3(dist, a=a, b=b)
+                    extrude_shape = shape4(dist, a=a, b=b, c=c)
+                    #extrude_shape = shape5(dist, a=a, b=b, c=c)
+                    #extrude_shape = shape_gauss(dist, 1.0, 0.0)
+                    extrude_vec = base_object.data.polygons[index].normal * extrude_shape * extrusion_strength
+                    extrude_with_transform(base_object, index, extrude_vec, curr_frame, delta_frame)
             if curr_frame > max_frames:
                 break
 
         # Add interpolation type.
-        set_animation_fcurve(base_object.data.animation_data, option='BOUNCE', easing='EASE_IN_OUT')
+        set_animation_fcurve(base_object.data.animation_data, option='EXPO', easing='EASE_IN_OUT')
             
 
 #

@@ -12,8 +12,8 @@ import numpy as np
 # https://realtimevfx.com/t/collection-of-useful-curve-shaping-functions/3704
 
 # t = {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5}
-def shape1(x, t=0.5):
-    return 1.0 - np.power(np.abs(x), t)
+def shape1(x, a=0.5):
+    return 1.0 - np.power(np.abs(x), a)
 
 def shape2(x, a=2.0, b=2.0):
     return np.power(np.cos(np.pi * x / 2.0), 2.0)
@@ -105,8 +105,9 @@ def main():
     whole_object_scaling_factor_min_max = [1.1, 1.3]
 
     n_anim_vert = 30
-    size_of_extrusion_min_max = [0.55, 0.76] # how many vertices will be moved in one extrusion
-    # TODO: strength of extrusion parameter
+    size_of_extrusion_min_max = [0.1, 0.6] # how many vertices will be moved in one extrusion
+    extrude_strength_min_max = [0.2, 0.5]
+    n_extrusions_per_keyframe_update = 3
 
     start_frame = 0
     delta_frame = 50 # distance between keyframes
@@ -147,48 +148,54 @@ def main():
         # Take only subset of vertices which will be animated.
         vert_indices_anim = np.random.randint(0, n_verts, n_anim_vert)
         while True:
-            #if mathutils.noise.random() > 0.3:
             curr_frame += delta_frame
-            # OPTION 1: use only subset of vertices for animation.
-            #vi_tmp = np.random.randint(0, len(vert_indices_anim), 1)[0]
-            #vi = vert_indices_anim[vi_tmp]
-            # OPTION 2: use random mesh vertex for animation.
-            vi = np.random.randint(0, n_verts, 1)[0]
-            v = base_object.data.vertices[vi]
-            # Update coordinates.
-            t = mathutils.noise.random()
-            neighbour_distace = lerp(size_of_extrusion_min_max[0], size_of_extrusion_min_max[1], t)
-            # Growth direction.
-            if curr_frame < growth_change_frame:
-                # Direction of growth in first part is mostly positive.
-                if mathutils.noise.random() > 0.2:
-                    sign = 1.0
+            for i in range(n_extrusions_per_keyframe_update):
+                # OPTION 1: use only subset of vertices for animation.
+                #vi_tmp = np.random.randint(0, len(vert_indices_anim), 1)[0]
+                #vi = vert_indices_anim[vi_tmp]
+                # OPTION 2: use random mesh vertex for animation.
+                vi = np.random.randint(0, n_verts, 1)[0]
+                v = base_object.data.vertices[vi]
+                # Compute distance of extrude op.
+                t = mathutils.noise.random()
+                neighbour_distace = lerp(size_of_extrusion_min_max[0], size_of_extrusion_min_max[1], t)
+                # Determine extrude (growth) direction.
+                if curr_frame < growth_change_frame:
+                    # Direction of growth in first part is mostly positive.
+                    if mathutils.noise.random() > 0.2:
+                        sign = 1.0
+                    else:
+                        sign = -1.0
                 else:
-                    sign = -1.0
-            else:
-                # Direction of growth in second part is mostly negative.
-                if mathutils.noise.random() > 0.2:
-                    sign = -1.0
-                else:
-                    sign = 1.0
-            for (co, index, dist) in kd.find_range(v.co, neighbour_distace):
-                curr_vert = base_object.data.vertices[index]
-                # Perform movement.
-                extrude_shape = shape_hann(dist, 1.0)
-                #extrude_shape = shape1(dist, 1.0)
-                #extrude_shape = shape2(dist, 2.0, 2.0)
-                #extrude_shape = shape3(dist, a = 2.0, b = 0.5)
-                #extrude_shape = shape4(dist, a=2.0, b=1.0, c=0.5)
-                #extrude_shape = shape5(dist, a=2.0, b=1.0, c=0.5)
-                #extrude_shape = lerp(0.1, 0.5, shape_gauss(dist, deviation=0.1, shift=0.0))
-                #extrude_shape = shape_lerp(dist, max_x=neighbour_distace, minv=0.1, maxv=0.5)
-                curr_vert.co += curr_vert.normal * sign * extrude_shape
-                # Keyframe updated coordinates.
-                curr_vert.keyframe_insert("co", frame=curr_frame)
-                # Store keyframe.
-                vertex_last_keyframe[index] = curr_frame
-            # Recalulate normals since mesh was deformed.
-            #recalculate_normals_bmesh(base_object)
+                    # Direction of growth in second part is mostly negative.
+                    if mathutils.noise.random() > 0.2:
+                        sign = -1.0
+                    else:
+                        sign = 1.0
+                # Extrude shape and strength randomization.
+                t = mathutils.noise.random()
+                extrude_strength = lerp(extrude_strength_min_max[0], extrude_strength_min_max[1], t)
+                a = lerp(0.1, 4.0, mathutils.noise.random())
+                b = lerp(0.1, 4.0, mathutils.noise.random())
+                c = lerp(0.1, 4.0, mathutils.noise.random())
+                for (co, index, dist) in kd.find_range(v.co, neighbour_distace):
+                    curr_vert = base_object.data.vertices[index]
+                    # Perform movement.
+                    #extrude_shape = shape_hann(dist, 1.0)
+                    extrude_shape = shape1(dist, a=1.0)
+                    #extrude_shape = shape2(dist, a=2.0, b=2.0)
+                    #extrude_shape = shape3(dist, a=2.0, b=0.5)
+                    #extrude_shape = shape4(dist, a=2.0, b=1.0, c=0.5)
+                    #extrude_shape = shape5(dist, a=2.0, b=1.0, c=0.5)
+                    #extrude_shape = lerp(0.1, 0.5, shape_gauss(dist, deviation=0.1, shift=0.0))
+                    #extrude_shape = shape_lerp(dist, max_x=neighbour_distace, minv=0.1, maxv=0.5)
+                    curr_vert.co += curr_vert.normal * sign * extrude_shape * extrude_strength
+                    # Keyframe updated coordinates.
+                    curr_vert.keyframe_insert("co", frame=curr_frame)
+                    # Store keyframe.
+                    vertex_last_keyframe[index] = curr_frame
+                # Recalulate normals since mesh was deformed.
+                #recalculate_normals_bmesh(base_object)
 
             if curr_frame > max_frames:
                 break
