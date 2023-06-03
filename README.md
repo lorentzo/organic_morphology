@@ -9,9 +9,9 @@ Concepts:
 
 <table>
 <tr>
-  <td><img src="examples/anim.gif" width="360"></td>
-  <td><img src="examples/anim2.gif" width="360"></td>
-  <td><img src="examples/anim3.gif" width="360"></td>
+  <td><img src="examples/anim.gif" width="300"></td>
+  <td><img src="examples/anim2.gif" width="300"></td>
+  <td><img src="examples/anim3.gif" width="300"></td>
 </tr>
 </table>
 
@@ -22,6 +22,6 @@ Concepts:
 </tr>
 </table>
 
-<img src="examples/va8.gif" width="720">
+<img src="examples/va8.gif" width="800">
 
-<img src="examples/va10.gif" width="720">
+<img src="examples/va10.gif" width="800">
