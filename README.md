@@ -7,6 +7,8 @@ Concepts:
   * Proportional extrusion via kd tree and bell shape functions.
 * Subidvision surface or remesh modifier for mesh smoothing (relaxation)
 
+Artwork and videos: https://www.artstation.com/artwork/LR8JVR
+
 <table>
 <tr>
   <td><img src="examples/anim.gif" width="300"></td>
