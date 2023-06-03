@@ -182,9 +182,9 @@ def main():
                     curr_vert = base_object.data.vertices[index]
                     # Perform movement.
                     #extrude_shape = shape_hann(dist, 1.0)
-                    extrude_shape = shape1(dist, a=1.0)
+                    #extrude_shape = shape1(dist, a=1.0)
                     #extrude_shape = shape2(dist, a=2.0, b=2.0)
-                    #extrude_shape = shape3(dist, a=2.0, b=0.5)
+                    extrude_shape = shape3(dist, a=2.0, b=0.5)
                     #extrude_shape = shape4(dist, a=2.0, b=1.0, c=0.5)
                     #extrude_shape = shape5(dist, a=2.0, b=1.0, c=0.5)
                     #extrude_shape = lerp(0.1, 0.5, shape_gauss(dist, deviation=0.1, shift=0.0))
